@@ -1,4 +1,6 @@
 from qt import *
+from component import *
+from dialog import *
 import random, math
 
 class SchematicComponent():
@@ -20,11 +22,20 @@ class SchematicComponent():
         self.wire = False
 
     """ -------------------------------------
+        Edit Dialog
+        ------------------------------------- """
+
+    def edit(self):
+        dialog = EditComponent(self.schematic.window, self.component)
+        dialog.show()
+
+    """ -------------------------------------
         Events
         ------------------------------------- """
 
     def draw(self, qp):
         s = self.schematic.grid_size
+        qp.setFont(QFont('SansSerif', 10*(s/20)))
         if self.schematic.debug:
             self.drawBoundingBoxes(qp)
         qp.setPen(QPen(self.colors["standard"], math.floor(s/10)))
@@ -32,18 +43,7 @@ class SchematicComponent():
             qp.setPen(QPen(self.colors["overlapped"], math.floor(s/10)))
         elif self.selected:
             qp.setPen(QPen(self.colors["selected"], math.floor(s/10)))
-
-    def mouseMoveEvent(self, e):
-        pass
-
-    def keyPressEvent(self, e):
-        pass
-
-    def mousePressEvent(self, e):
-        pass
-
-    def mouseReleaseEvent(self, e):
-        pass
+        self.drawComponent(qp)
 
     """ -------------------------------------
         Painting
@@ -58,7 +58,7 @@ class SchematicComponent():
 
     def drawEndPoints(self, qp):
         s, x0, y0, w0, h0 = self.getDrawValues()
-        qp.setPen(QPen(QColor(155, 100, 100), math.floor(s/10)))
+        qp.setPen(QPen(self.colors["coreBoundingBox"], math.floor(s/10)))
         qp.drawEllipse(x0 - s/4, y0 - s/4, s/2, s/2)
         qp.drawEllipse(x0 + 4*s*w0 - s/4, y0 + 4*s*h0 - s/4, s/2, s/2)
 
@@ -66,6 +66,20 @@ class SchematicComponent():
         s = self.schematic.grid_size
         self.drawLine(qp, 0, 0, s*.95, 0)
         self.drawLine(qp, 3.05*s, 0, 4*s, 0)
+
+    def drawLabel(self, qp):
+        s, x0, y0, w0, h0 = self.getDrawValues()
+        lbl = ('%f' % self.component.value).rstrip('0').rstrip('.')
+        unit = self.component.unitPrefix + self.component.unit
+        align = Qt.AlignCenter
+        if h0:
+            align = Qt.AlignRight | Qt.AlignCenter
+        box = QRectF(x0 + s*w0 - 2.5*s*h0,
+                     y0 + (1.25*s)*h0 - (1.5*s)*w0,
+                     2*s, s)
+        qp.fillRect(box, self.colors["labelBox"])
+        qp.setPen(QPen(self.colors["label"], math.floor(s/10)))
+        qp.drawText(box, align, lbl + unit)
 
     def drawRoundSchematicComponent(self, qp):
         s = self.schematic.grid_size
@@ -152,16 +166,21 @@ class SchematicWire(SchematicComponent):
 
     def __init__(self, parent, x, y, length, sign, horizontal):
         super().__init__(parent, x, y, sign, horizontal)
-        self.length = length
+        self.length = 0
         self.wire = True
 
-    def draw(self, qp):
+    def drawComponent(self, qp):
         s, x0, y0, w0, h0 = self.getDrawValues()
-        super().draw(qp)
         l = s*self.length*self.sign
         qp.drawLine(x0, y0, x0 + l*w0, y0 + l*h0)
 
+    def edit(self):
+        pass
+
     def drawEndPoints(self, qp):
+        pass
+
+    def drawLabel(self, qp):
         pass
 
     def positive(self):
@@ -208,10 +227,10 @@ class SchematicVoltageSource(SchematicComponent):
 
     def __init__(self, parent, x, y, v, sign, horizontal = True):
         super().__init__(parent, x, y, sign, horizontal)
+        self.component = VoltageSource(self, v)
         self.v = v
 
-    def draw(self, qp):
-        super().draw(qp)
+    def drawComponent(self, qp):
         s = self.schematic.grid_size
         self.drawRoundSchematicComponent(qp)
         self.drawLine(qp, s*1.3, 0, s*1.7, 0)
@@ -228,10 +247,10 @@ class SchematicCurrentSource(SchematicComponent):
 
     def __init__(self, parent, x, y, i, sign, horizontal = True):
         super().__init__(parent, x, y, sign, horizontal)
+        self.component = CurrentSource(self, i)
         self.i = i
 
-    def draw(self, qp):
-        super().draw(qp)
+    def drawComponent(self, qp):
         s = self.schematic.grid_size
         self.drawRoundSchematicComponent(qp)
         self.drawLine(qp, s*1.3, 0, s*2.7, 0)
@@ -248,10 +267,10 @@ class SchematicResistor(SchematicComponent):
 
     def __init__(self, parent, x, y, r, sign, horizontal = True):
         super().__init__(parent, x, y, sign, horizontal)
+        self.component = Resistor(self, r)
         self.r = r
 
-    def draw(self, qp):
-        super().draw(qp)
+    def drawComponent(self, qp):
         s = self.schematic.grid_size
         self.drawLeads(qp)
         self.drawLine(qp, s, 0, 1.4*s, -2*s/3)

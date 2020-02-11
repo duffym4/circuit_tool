@@ -1,5 +1,6 @@
 from qt import *
 from schematicComponent import SchematicComponent
+from dialog import InfoDialogs
 
 class AltMenu:
     def __init__(self, window):
@@ -23,7 +24,7 @@ class AltMenu:
 
         self.aboutAction = QAction("&About")
         self.helpMenu.addAction(self.aboutAction)
-        self.aboutAction.triggered.connect(self.showAboutDialog)
+        self.aboutAction.triggered.connect(lambda: InfoDialogs.about(self.window))
 
         self.debugAction = QAction("&Toggle Debug")
         self.helpMenu.addAction(self.debugAction)
@@ -34,11 +35,3 @@ class AltMenu:
 
     def changeMode(self, mode):
         return lambda: self.schematic.changeMode(*mode)
-
-    def showAboutDialog(self):
-        text = "<center>" \
-               "<h1>Circuit Editor</h1>" \
-               "&#8291;" \
-               "<p>Version 0.1</p>" \
-               "</center>"
-        QMessageBox.about(self.window, "About Circuit Editor", text)

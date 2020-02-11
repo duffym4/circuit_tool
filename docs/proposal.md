@@ -9,9 +9,9 @@
 ### Project Overview
 The goal of this project is to provide a platform for circuit analysis. Unlike SPICE and its derivatives, this project aims to provide algebraic and symbolic analysis rather than accurate simulation. This will allow for variable components and mathematical representation of outputs over the time or frequency domains.
 
-This will make use of a powerful python library 'lcapy' developed at the University of Canterbury NZ which uses sympy to solve linear circuits with nodal analysis.
+This will make use of a powerful python library *lcapy* developed at the University of Canterbury NZ which uses sympy to solve linear circuits with nodal analysis.
 
-The front end will use the lightweight, cross platform, open source graphical toolkit QT. Below is a preliminary screen shot of the user interface:
+The front end will use the cross platform, open source graphical toolkit Qt. Below is a preliminary screen shot of the user interface:
 
 ![screen capture](circuit.png)
 
@@ -19,9 +19,9 @@ The front end will use the lightweight, cross platform, open source graphical to
 ### Technical Information
 * **Language:** Python
 * **Libraries:**
-   * PyQt5: cross platform gui
-   * Lcapy: linear circuit analysis
-   * Matplotlib: graphing
+   * *PyQt5*: cross platform gui
+   * *Lcapy*: linear circuit analysis
+   * *Matplotlib*: graphing
 
 ### Planned Milestones
 * **February:**

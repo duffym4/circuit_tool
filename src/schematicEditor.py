@@ -1,5 +1,6 @@
 from qt import *
 from schematicComponent import *
+from dialog import *
 import random, math
 
 class SchematicEditor(QWidget):
@@ -39,6 +40,8 @@ class SchematicEditor(QWidget):
         self.colors = {
             "grid": QColor(54, 65, 70),
             "standard": QColor(220, 200, 255),
+            "label": QColor(255, 240, 255, 225),
+            "labelBox": QColor(38, 50, 56, 155),
             "overlapped": QColor(255, 100, 100),
             "selected": QColor(100, 255, 255),
             "boundingBox": QColor(155, 100, 100),
@@ -109,8 +112,11 @@ class SchematicEditor(QWidget):
     def drawComponents(self, qp):
         for c in self.components:
             c.draw(qp)
+        for c in self.components:
+            c.drawLabel(qp)
         if self.current:
             self.current.draw(qp)
+            self.current.drawLabel(qp)
 
     """ -------------------------------------
         Controls
@@ -151,8 +157,7 @@ class SchematicEditor(QWidget):
             self.offset_y -= 20
         elif e.key() == Qt.Key_Backspace:
             if self.selected:
-                self.components.remove(self.selected)
-                self.selected = None
+                self.deleteComponent(self.selected)
             elif self.mode["component"] == "temporary":
                 self.current = None
                 self.changeMode("navigation")
@@ -209,6 +214,7 @@ class SchematicEditor(QWidget):
             self.selected = self.components[-1]
         else:
             h, s = self.current.horizontal, self.current.sign
+            self.current.edit()
             self.resetCurrent(self.mode["component"], h, s)
 
     def rotateCurrent(self):
@@ -222,10 +228,17 @@ class SchematicEditor(QWidget):
                 self.current = self.selected
                 self.components.remove(self.selected)
                 self.selected = None
+        elif e.button() == Qt.RightButton:
+            if not self.current and self.selected != None:
+                self.selected.edit()
+
+    def deleteComponent(self, component):
+        self.components.remove(component)
+        self.selected = None
 
     def resetCurrent(self, component, horizontal = True, sign = 1):
         if component != "temporary":
-            self.current = SchematicComponent.lookup[component](self, 0, 0, 0, sign, horizontal)
+            self.current = SchematicComponent.lookup[component](self, 0, 0, 1, sign, horizontal)
             self.positionCurrent(self.mouse_x, self.mouse_y)
 
     def positionCurrent(self, x, y):
