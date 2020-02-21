@@ -1,6 +1,7 @@
 from qt import *
 from component import *
 from dialog import *
+from util import *
 import random, math
 
 class SchematicComponent():
@@ -9,17 +10,18 @@ class SchematicComponent():
         Initialization
         ------------------------------------- """
 
+    type = None
+
     def __init__(self, parent, x, y, sign, horizontal = True):
-        self.x = x
-        self.y = y
+        self.schematic = parent
+        self.x, self.y = x, y
         self.horizontal = horizontal
         self.sign = sign
-        self.schematic = parent
-        self.overlapped = False
-        self.selected = False
+        self.overlapped, self.selected, self.new = False, False, False
         self.colors = self.schematic.colors
-        self.name = None
-        self.wire = False
+        self.wire, self.ground = False, False
+        self.name = ""
+        self.drawName = False
 
     """ -------------------------------------
         Edit Dialog
@@ -38,8 +40,11 @@ class SchematicComponent():
         qp.setFont(QFont('SansSerif', 10*(s/20)))
         if self.schematic.debug:
             self.drawBoundingBoxes(qp)
+            self.drawEndPoints(qp)
         qp.setPen(QPen(self.colors["standard"], math.floor(s/10)))
-        if self.overlapped:
+        if self.new:
+            qp.setPen(QPen(self.colors["new"], math.floor(s/10)))
+        elif self.overlapped:
             qp.setPen(QPen(self.colors["overlapped"], math.floor(s/10)))
         elif self.selected:
             qp.setPen(QPen(self.colors["selected"], math.floor(s/10)))
@@ -51,16 +56,18 @@ class SchematicComponent():
 
     def drawBoundingBoxes(self, qp):
         s, x0, y0, w0, h0 = self.getDrawValues()
-        qp.setPen(QPen(self.colors["boundingBox"], math.floor(s/10)))
-        qp.drawRect(*self.getCoreBoundingBox())
         qp.setPen(QPen(self.colors["coreBoundingBox"], math.floor(s/10)))
+        qp.drawRect(*self.getCoreBoundingBox())
+        qp.setPen(QPen(self.colors["boundingBox"], math.floor(s/10)))
         qp.drawRect(*self.getBoundingBox())
 
     def drawEndPoints(self, qp):
         s, x0, y0, w0, h0 = self.getDrawValues()
+        x0 = self.schematic.offset_x
+        y0 = self.schematic.offset_y
         qp.setPen(QPen(self.colors["coreBoundingBox"], math.floor(s/10)))
-        qp.drawEllipse(x0 - s/4, y0 - s/4, s/2, s/2)
-        qp.drawEllipse(x0 + 4*s*w0 - s/4, y0 + 4*s*h0 - s/4, s/2, s/2)
+        for c in self.getConnections():
+            qp.drawEllipse(x0 + c[0]*s - s/4, y0 + c[1]*s - s/4, s/2, s/2)
 
     def drawLeads(self, qp):
         s = self.schematic.grid_size
@@ -69,17 +76,21 @@ class SchematicComponent():
 
     def drawLabel(self, qp):
         s, x0, y0, w0, h0 = self.getDrawValues()
-        lbl = ('%f' % self.component.value).rstrip('0').rstrip('.')
-        unit = self.component.unitPrefix + self.component.unit
+        #val = ('%f' % self.component.value).rstrip('0').rstrip('.')
+        lbl = self.component.value.str()
+
+        y, h = y0 + (1.25*s)*h0 - (1.5*s)*w0, s
+        if self.drawName:
+            lbl = self.component.name + "\n" + lbl
+            h = 2*s
+            y -= s/2
         align = Qt.AlignCenter
         if h0:
             align = Qt.AlignRight | Qt.AlignCenter
-        box = QRectF(x0 + s*w0 - 2.5*s*h0,
-                     y0 + (1.25*s)*h0 - (1.5*s)*w0,
-                     2*s, s)
+        box = QRectF(x0 + s*w0 - 2.5*s*h0, y, 2*s, h)
         qp.fillRect(box, self.colors["labelBox"])
         qp.setPen(QPen(self.colors["label"], math.floor(s/10)))
-        qp.drawText(box, align, lbl + unit)
+        qp.drawText(box, align, lbl)
 
     def drawRoundSchematicComponent(self, qp):
         s = self.schematic.grid_size
@@ -134,7 +145,7 @@ class SchematicComponent():
             return True
 
     def selecting(self, x, y):
-        x1, y1, w1, h1 = self.getCoreBoundingBox()
+        x1, y1, w1, h1 = self.getBoundingBox()
         if x > x1 and x < x1 + w1 and y > y1 and y < y1 + h1:
             return True
 
@@ -156,15 +167,77 @@ class SchematicComponent():
         if self.horizontal:
             self.sign *= -1
 
+    """ -------------------------------------
+        Solver Methods
+        ------------------------------------- """
+
+    def getSolveData(self):
+        if hasattr(self, "component"):
+            return self.component.getSolveData()
+
+    def adjacentComponents(self, components):
+        nodes = self.getConnections()
+        connections = []
+        for node in nodes:
+            connections.append([])
+            for component in components:
+                if component != self:
+                    otherConnections = component.getConnections()
+                    if node in otherConnections:
+                        c = Connection(component, otherConnections.index(node))
+                        connections[-1].append(c)
+        return connections
+
+    def getConnections(self):
+        s, x0, y0, w0, h0 = self.getDrawValues()
+        return [(self.x, self.y), (self.x + 4*w0, self.y + 4*h0)]
+
+    """ -------------------------------------
+        Saving/Loading Methods
+        ------------------------------------- """
+
+    def serialize(self):
+        data = {
+            "type": type(self),
+            "x": self.x,
+            "y": self.y,
+            "sign": self.sign,
+            "horizontal": self.horizontal,
+            "drawName": self.drawName,
+        }
+        if hasattr(self, "component"):
+            componentData = {
+                "value": self.component.value.value,
+                "unitPrefix": self.component.value.unitPrefix,
+                "name": self.component.name,
+            }
+            data = {**data, **componentData}
+        if self.wire:
+            data["length"] = self.length
+        return data
+
+    def deserialize(self, data):
+        self.x = data["x"]
+        self.y = data["y"]
+        self.sign = data["sign"]
+        self.horizontal = data["horizontal"]
+        self.drawName = data["drawName"]
+        if hasattr(self, "component"):
+            self.component.value.value = data["value"]
+            self.component.value.unitPrefix = data["unitPrefix"]
+            self.component.name = data["name"]
+        if self.wire:
+            self.length = data["length"]
+
 """ -------------------------------------
     Wires
     ------------------------------------- """
 
 class SchematicWire(SchematicComponent):
 
-    name = "Wire"
+    type = "Wire"
 
-    def __init__(self, parent, x, y, length, sign, horizontal):
+    def __init__(self, parent, x, y, sign, horizontal):
         super().__init__(parent, x, y, sign, horizontal)
         self.length = 0
         self.wire = True
@@ -177,11 +250,13 @@ class SchematicWire(SchematicComponent):
     def edit(self):
         pass
 
-    def drawEndPoints(self, qp):
-        pass
-
     def drawLabel(self, qp):
         pass
+
+    def getSolveData(self):
+        solver = self.schematic.solver
+        measure = Measure(solver.getValue(solver.wires[self], "V"), "V")
+        return "Wire\n" + measure.str()
 
     def positive(self):
         if self.sign == -1:
@@ -196,7 +271,7 @@ class SchematicWire(SchematicComponent):
     def getBoundingBox(self):
         s, x0, y0, w0, h0 = self.getDrawValues()
         l = s*self.length
-        b = s*self.length*.5*(-self.sign + 1)
+        b = l*mp2oz(self.sign)
         return x0 - .1*s - w0*b, y0 - .1*s - h0*b, .2*s + w0*l, .2*s + h0*l
 
     def resizeWire(self, x, y):
@@ -209,13 +284,15 @@ class SchematicWire(SchematicComponent):
         self.sign += (not self.horizontal) * (y0 > self.y)
         self.sign = self.sign*2 - 1
 
-    def selecting(self, x, y):
-        x1, y1, w1, h1 = self.getBoundingBox()
-        if x > x1 and x < x1 + w1 and y > y1 and y < y1 + h1:
-            return True
-
     def rotate(self):
         pass
+
+    def getConnections(self):
+        s, x0, y0, w0, h0 = self.getDrawValues()
+        connections = []
+        for i in range(self.length + 1):
+            connections.append((int(self.x + i*w0), int(self.y + i*h0)))
+        return connections
 
 """ -------------------------------------
     Voltage Source
@@ -223,12 +300,11 @@ class SchematicWire(SchematicComponent):
 
 class SchematicVoltageSource(SchematicComponent):
 
-    name = "Voltage Source"
+    type = "Voltage Source"
 
-    def __init__(self, parent, x, y, v, sign, horizontal = True):
+    def __init__(self, parent, x, y, sign, horizontal = True):
         super().__init__(parent, x, y, sign, horizontal)
-        self.component = VoltageSource(self, v)
-        self.v = v
+        self.component = VoltageSource(self)
 
     def drawComponent(self, qp):
         s = self.schematic.grid_size
@@ -243,12 +319,11 @@ class SchematicVoltageSource(SchematicComponent):
 
 class SchematicCurrentSource(SchematicComponent):
 
-    name = "Current Source"
+    type = "Current Source"
 
-    def __init__(self, parent, x, y, i, sign, horizontal = True):
+    def __init__(self, parent, x, y, sign, horizontal = True):
         super().__init__(parent, x, y, sign, horizontal)
-        self.component = CurrentSource(self, i)
-        self.i = i
+        self.component = CurrentSource(self)
 
     def drawComponent(self, qp):
         s = self.schematic.grid_size
@@ -263,12 +338,11 @@ class SchematicCurrentSource(SchematicComponent):
 
 class SchematicResistor(SchematicComponent):
 
-    name = "Resistor"
+    type = "Resistor"
 
-    def __init__(self, parent, x, y, r, sign, horizontal = True):
+    def __init__(self, parent, x, y, sign, horizontal = True):
         super().__init__(parent, x, y, sign, horizontal)
-        self.component = Resistor(self, r)
-        self.r = r
+        self.component = Resistor(self)
 
     def drawComponent(self, qp):
         s = self.schematic.grid_size
@@ -280,12 +354,57 @@ class SchematicResistor(SchematicComponent):
         self.drawLine(qp, 2.6*s, 2*s/3, 3*s, 0)
 
 """ -------------------------------------
+    Ground
+    ------------------------------------- """
+
+class SchematicGround(SchematicComponent):
+
+    type = "Ground"
+
+    def __init__(self, parent, x, y, sign, horizontal = True):
+        super().__init__(parent, x, y, sign, horizontal)
+        self.ground = True
+
+    def drawLabel(self, qp):
+        pass
+
+    def edit(self):
+        pass
+
+    def getSolveData(self):
+        return "GND"
+        
+    def getConnections(self):
+        s, x0, y0, w0, h0 = self.getDrawValues()
+        sign = mp2oz(self.sign)
+        return [(int(self.x + 2*sign*w0), int(self.y + 2*sign*h0))]
+
+    def getCoreBoundingBox(self):
+        s, x0, y0, w0, h0 = self.getDrawValues()
+        w02 = self.sign == 1 and w0 or 0
+        h02 = self.sign == 1 and h0 or 0
+        return x0 - s*h0 + .2*s + .9*s*w02, y0 + .2*s - s*w0 + .9*s*h02, .6*s + s*h0, .6*s + s*w0
+
+    def getBoundingBox(self):
+        s, x0, y0, w0, h0 = self.getDrawValues()
+        return x0 - s*h0, y0 - s*w0, 2*s, 2*s
+
+    def drawComponent(self, qp):
+        s = self.schematic.grid_size
+        self.drawLine(qp, 0, 0, s, 0)
+        self.drawLine(qp, s, -.5*s, s, .5*s)
+        self.drawLine(qp, s*1.2, -.3*s, s*1.2, .3*s)
+        self.drawLine(qp, s*1.4, -.1*s, s*1.4, .1*s)
+        self.drawLine(qp, s*1.6, 0, s*1.6, 0)
+
+""" -------------------------------------
     Component Lookup
     ------------------------------------- """
 
 SchematicComponent.lookup = {
+    "wire": SchematicWire,
     "resistor": SchematicResistor,
     "voltageSource": SchematicVoltageSource,
     "currentSource": SchematicCurrentSource,
-    "wire": SchematicWire
+    "ground": SchematicGround
 }

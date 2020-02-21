@@ -1,37 +1,47 @@
 from qt import *
 from schematicComponent import SchematicComponent
 from dialog import InfoDialogs
+from schematicEditor import SchematicEditor
 
 class AltMenu:
     def __init__(self, window):
         self.window = window
         self.schematic = self.window.schematic
 
-        self.fileMenu = window.menuBar().addMenu("&File")
-        self.componentMenu = window.menuBar().addMenu("&Component")
-        self.helpMenu = window.menuBar().addMenu("&Help")
+        self.menu = {
+            "File": {
+                "New":  self.window.schematic.new,
+                "Save": self.window.schematic.save,
+                "Load": self.window.schematic.load,
+                "Quit": self.window.quit
+            },
+            "Circuit": {
+                "Inspect": self.window.schematic.solve
+            },
+            "Component": {}, # Populated Programmatically
+            "Help": {
+                "About": lambda: InfoDialogs.about(self.window),
+                "Debug": self.window.toggleDebug
+            }
+        }
 
-        self.close = QAction("&Close")
-        self.close.triggered.connect(window.close)
-        self.fileMenu.addAction(self.close)
+        self.menus = {}
+        self.actions = []
 
-        self.components = []
+        for submenu in self.menu:
+            self.menus[submenu] = window.menuBar().addMenu("&" + submenu)
+            for action in self.menu[submenu]:
+                qa = QAction("&" + action)
+                qa.triggered.connect(self.menu[submenu][action])
+                self.menus[submenu].addAction(qa)
+                self.actions.append(qa)
+
         for v in SchematicComponent.lookup:
             component = SchematicComponent.lookup[v]
-            self.components.append(QAction("&" + component.name))
-            self.components[-1].triggered.connect(self.changeMode(["component", v]))
-            self.componentMenu.addAction(self.components[-1])
-
-        self.aboutAction = QAction("&About")
-        self.helpMenu.addAction(self.aboutAction)
-        self.aboutAction.triggered.connect(lambda: InfoDialogs.about(self.window))
-
-        self.debugAction = QAction("&Toggle Debug")
-        self.helpMenu.addAction(self.debugAction)
-        self.debugAction.triggered.connect(self.toggleDebug)
-
-    def toggleDebug(self):
-        self.schematic.debug = not self.schematic.debug
+            qa = QAction("&" + component.type)
+            qa.triggered.connect(self.changeMode(["component", v]))
+            self.menus["Component"].addAction(qa)
+            self.actions.append(qa)
 
     def changeMode(self, mode):
         return lambda: self.schematic.changeMode(*mode)

@@ -27,12 +27,12 @@ The front end will use the cross platform, open source graphical toolkit Qt. Bel
 * **February:**
    - [x] Finish project proposal
    - [x] Basic schematic editing
-   - [ ] Solving time constant circuits
+   - [x] Solving time constant circuits
 * **March:**
    - [ ] Improved user interface
    - [ ] Solving time dependent circuits
       - [ ] Support capacitors and inductors
-   - [ ] Saving and loading circuits
+   - [x] Saving and loading circuits
    - [ ] Graphing
 * **April:**
    - [ ] Solving for the s domain
