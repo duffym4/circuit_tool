@@ -81,7 +81,7 @@ class EditComponent():
 
     def okay(self):
         self.component.value.value = self.setValue.value()
-        self.component.unitPrefix = self.setUnit.currentText()[:-1]
+        self.component.value.unitPrefix = self.setUnit.currentText()[:-1]
         newName = self.setName.text()
         if not self.window.schematic.usedName(newName, self.component):
             self.component.name = newName

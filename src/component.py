@@ -23,7 +23,7 @@ class Component():
 
     def getSolveData(self):
         if self.solver.solved:
-            out = self.schematicComponent.type + ": " + self.name + "\n"
+            out = self.name + " (" + self.schematicComponent.type  + ")\n"
             out += "Voltage: " + self.getSolveValue("V", "V").str() + "\n"
             out += "Current: " + self.getSolveValue("I", "A").str()
             return out
@@ -37,8 +37,14 @@ class Component():
         return self.value.lcapyStr()
 
     def getSolverString(self):
-        contents = [self.name, *self.nodes, self.getValueString()]
+        contents = [self.name, *self.getSignedNodes(), self.getValueString()]
         return " ".join([str(x) for x in contents])
+
+    def getSignedNodes(self):
+        signs = {1: [*self.nodes], -1: [*self.nodes]}
+        signs[1].reverse()
+        return signs[self.schematicComponent.sign]
+
 
 """ -------------------------------------
     Wire
@@ -81,6 +87,9 @@ class Resistor(Component):
     measure = "Resistance"
     unit = "Ω"
     namePrefix = "R"
+
+    def getSignedNodes(self):
+        return [*self.nodes]
 
 
 """ -------------------------------------
