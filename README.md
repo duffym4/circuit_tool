@@ -12,6 +12,9 @@ See milestone checklist in [the project proposal](docs/proposal.md) for project 
 
 `python app.py`
 
+See [controls documentation](docs/controls.md) for controls.
+These will eventually be added to an in-application help menu.
+
 ### Screenshots
 ![screen capture](docs/circuit.png)
 

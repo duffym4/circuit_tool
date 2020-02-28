@@ -4,7 +4,7 @@ from validator import NameValidator
 class InfoDialogs():
 
     def about(window):
-        msg = "<center>" \
+        msg =  "<center>" \
                "<h1>Circuit Analysis Tool</h1>" \
                "<p>Martin Duffy</p>" \
                "<p>Version 0.1</p>" \
@@ -18,13 +18,13 @@ class InfoDialogs():
 
     def saveFile(window):
         msg = "Save Schematic"
-        fileTypes = "Schematic Files (*.cts);;All Files (*)"
+        fileTypes = "Circuit Files (*.circuit);;All Files (*)"
         filename, _ = QFileDialog.getSaveFileName(window, msg, "", fileTypes)
         return filename
 
     def openFile(window):
         msg = "Save Schematic"
-        fileTypes = "Schematic Files (*.cts);;All Files (*)"
+        fileTypes = "Circuit Files (*.circuit);;All Files (*)"
         filename, _ = QFileDialog.getOpenFileName(window, msg, "", fileTypes)
         return filename
 

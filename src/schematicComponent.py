@@ -74,23 +74,28 @@ class SchematicComponent():
         self.drawLine(qp, 0, 0, s*.95, 0)
         self.drawLine(qp, 3.05*s, 0, 4*s, 0)
 
-    def drawLabel(self, qp):
+    def getLabelBox(self):
         s, x0, y0, w0, h0 = self.getDrawValues()
-        #val = ('%f' % self.component.value).rstrip('0').rstrip('.')
-        lbl = self.component.value.str()
-
         y, h = y0 + (1.25*s)*h0 - (1.5*s)*w0, s
+        box = QRectF(x0 + s*w0 - 2.5*s*h0, y, 2*s, h)
         if self.drawName:
-            lbl = self.component.name + "\n" + lbl
             h = 2*s
             y -= s/2
+        return QRectF(x0 + s*w0 - 2.5*s*h0, y, 2*s, h)
+
+    def drawLabelBox(self, qp):
+        qp.fillRect(self.getLabelBox(), self.colors["labelBox"])
+
+    def drawLabel(self, qp):
+        s, x0, y0, w0, h0 = self.getDrawValues()
+        lbl = self.component.value.str()
+        if self.drawName:
+            lbl = self.component.name + "\n" + lbl
         align = Qt.AlignCenter
         if h0:
             align = Qt.AlignRight | Qt.AlignCenter
-        box = QRectF(x0 + s*w0 - 2.5*s*h0, y, 2*s, h)
-        qp.fillRect(box, self.colors["labelBox"])
         qp.setPen(QPen(self.colors["label"], math.floor(s/10)))
-        qp.drawText(box, align, lbl)
+        qp.drawText(self.getLabelBox(), align, lbl)
 
     def drawRoundSchematicComponent(self, qp):
         s = self.schematic.grid_size
@@ -253,9 +258,13 @@ class SchematicWire(SchematicComponent):
     def drawLabel(self, qp):
         pass
 
+    def drawLabelBox(self, qp):
+        pass
+
     def getSolveData(self):
         solver = self.schematic.solver
         measure = Measure(solver.getValue(solver.wires[self], "V"), "V")
+        measure.autoPrefix()
         return "Wire\n" + measure.str()
 
     def positive(self):
@@ -368,12 +377,15 @@ class SchematicGround(SchematicComponent):
     def drawLabel(self, qp):
         pass
 
+    def drawLabelBox(self, qp):
+        pass
+
     def edit(self):
         pass
 
     def getSolveData(self):
         return "GND"
-        
+
     def getConnections(self):
         s, x0, y0, w0, h0 = self.getDrawValues()
         sign = mp2oz(self.sign)

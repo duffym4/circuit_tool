@@ -21,30 +21,41 @@ class Component():
         self.name = self.schematic.getNextName(self.namePrefix)
         self.nodes = [None, None]
 
+    # Gets the contents of the info box for hovering a solved component
     def getSolveData(self):
         if self.solver.solved:
+            V = self.getSolveValue("V", "V")
+            I = self.getSolveValue("I", "A")
+            V.autoPrefix()
+            I.autoPrefix()
             out = self.name + " (" + self.schematicComponent.type  + ")\n"
-            out += "Voltage: " + self.getSolveValue("V", "V").str() + "\n"
-            out += "Current: " + self.getSolveValue("I", "A").str()
+            out += "Voltage: " + V.str() + "\n"
+            out += "Current: " + I.str()
             return out
         else:
             return ""
 
+    # Returns a measure of a value of component
     def getSolveValue(self, value, unit):
         return Measure(self.solver.getValue(self.name, value), unit)
 
+    # Returns value in a form readable by lcapy
     def getValueString(self):
         return self.value.lcapyStr()
 
+    # Return the string that adds the component to the lcapy circuit: <name> <*nodes> <value>
     def getSolverString(self):
         contents = [self.name, *self.getSignedNodes(), self.getValueString()]
         return " ".join([str(x) for x in contents])
 
+    # Returns a copy of nodes reordered to match the sign of the component
     def getSignedNodes(self):
         signs = {1: [*self.nodes], -1: [*self.nodes]}
         signs[1].reverse()
+        #if self.schematicComponent.horizontal:
+        #    return signs[-self.schematicComponent.sign]
+        #else:
         return signs[self.schematicComponent.sign]
-
 
 """ -------------------------------------
     Wire
@@ -88,6 +99,7 @@ class Resistor(Component):
     unit = "Ω"
     namePrefix = "R"
 
+    # Resistor direction does not matter
     def getSignedNodes(self):
         return [*self.nodes]
 

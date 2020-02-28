@@ -30,11 +30,11 @@ class SchematicEditor(QWidget):
             "wire": ""
         }
         self.componentShortcuts = {
-            "R": ["resistor"],
-            "V": ["voltageSource"],
-            "I": ["currentSource"],
-            "W": ["wire", "inserting"],
-            "G": ["ground"]
+            "r": ["resistor"],
+            "v": ["voltageSource"],
+            "i": ["currentSource"],
+            "w": ["wire", "inserting"],
+            "g": ["ground"]
         }
         self.actionShortcuts = {
             "ctrl": {
@@ -51,7 +51,8 @@ class SchematicEditor(QWidget):
         self.selected = None
         self.colors = {
             "grid":             QColor(54, 65, 70),
-            "standard":         QColor(220, 200, 255),
+            #"standard":         QColor(220, 200, 255),
+            "standard":         QColor(220, 220, 255),
             "label":            QColor(255, 240, 255),
             "labelBox":         QColor(38, 50, 56, 155),
             "inspectBox":       QColor(0, 0, 0, 55),
@@ -179,6 +180,8 @@ class SchematicEditor(QWidget):
         for c in self.components:
             c.draw(qp)
         for c in self.components:
+            c.drawLabelBox(qp)
+        for c in self.components:
             c.drawLabel(qp)
         if self.current:
             self.current.draw(qp)
@@ -194,9 +197,8 @@ class SchematicEditor(QWidget):
                        10 + tb*(self.window.height() - h - 50),
                        w, h]
             qp.fillRect(QRectF(*box), self.colors["inspectBox"])
-            qp.setPen(QPen(self.colors["label"],  5, Qt.SolidLine))
+            qp.setPen(QPen(self.colors["label"], 2, Qt.SolidLine))
             qp.drawRect(*box)
-            qp.setPen(QPen(self.colors["label"], 10))
             align = Qt.AlignCenter
             qp.setFont(QFont('SansSerif', 20))
             qp.drawText(QRectF(*box), align, self.selected.getSolveData())
