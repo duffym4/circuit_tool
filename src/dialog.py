@@ -23,11 +23,58 @@ class InfoDialogs():
         return filename
 
     def openFile(window):
-        msg = "Save Schematic"
+        msg = "Load Schematic"
         fileTypes = "Circuit Files (*.circuit);;All Files (*)"
         filename, _ = QFileDialog.getOpenFileName(window, msg, "", fileTypes)
         return filename
 
+class CircuitProperties():
+
+    def __init__(self, window):
+        self.window = window
+        self.schematic = window.schematic
+
+        self.w, self.h = 300, 100
+        self.dialog = QDialog()
+        self.dialog.setWindowTitle("Circuit Properties")
+        self.dialog.setGeometry(window.x() + window.width()/2 - self.w/2,
+                          window.y() + window.height()/2 - self.h/2,
+                          self.w, self.h)
+
+        self.okayButton = QPushButton("ok", self.dialog)
+        self.okayButton.clicked.connect(self.okay)
+        self.cancelButton = QPushButton("cancel", self.dialog)
+        self.cancelButton.clicked.connect(self.cancel)
+        self.buttons = QHBoxLayout()
+        self.buttons.addWidget(self.okayButton)
+        self.buttons.addWidget(self.cancelButton)
+
+        self.setDomain = QComboBox()
+        self.setDomain.addItem("Time (t)")
+        self.setDomain.addItem("Frequency (s)")
+        if self.schematic.domain == "t":
+            self.setDomain.setCurrentIndex(0)
+        else:
+            self.setDomain.setCurrentIndex(1)
+
+        self.setDuration = QDoubleSpinBox()
+        self.setDuration.setValue(self.schematic.simulationTime)
+
+
+        self.form = QFormLayout(self.dialog)
+        self.form.addRow("Domain", self.setDomain)
+        self.form.addRow("Duration (s)", self.setDuration)
+        self.form.addRow("", self.buttons)
+
+        self.dialog.exec_()
+
+    def okay(self):
+        self.schematic.domain = self.setDomain.currentText()[-2:-1]
+        self.schematic.simulationTime = self.setDuration.value()
+        self.dialog.close()
+
+    def cancel(self):
+        self.dialog.close()
 
 class EditComponent():
 
@@ -37,6 +84,10 @@ class EditComponent():
         self.w, self.h = 300, 100
         self.dialog = QDialog()
         self.dialog.setWindowTitle("Edit " + component.schematicComponent.type)
+
+        self.dialog.setGeometry(window.x() + window.width()/2 - self.w/2,
+                          window.y() + window.height()/2 - self.h/2,
+                          self.w, self.h)
 
         self.okayButton = QPushButton("ok", self.dialog)
         self.okayButton.clicked.connect(self.okay)
@@ -59,29 +110,71 @@ class EditComponent():
         self.nameEditor.addWidget(self.setName)
         self.nameEditor.addWidget(self.drawName)
 
-        self.setValue = QDoubleSpinBox()
-        self.setValue.setValue(self.component.value.value)
-        self.setUnit = QComboBox()
+        self.setValueNumber = QDoubleSpinBox()
+        numberMode = True
+        try:
+            self.setValueNumber.setValue(self.component.value.value)
+        except:
+            self.setValueNumber.setValue(1)
+            numberMode = False
+
+        self.setValueExpression = QLineEdit()
+        self.setValueExpression.setText(str(self.component.value.value))
+        self.setValue = QStackedLayout()
+        self.setValue.addWidget(self.setValueNumber)
+        self.setValue.addWidget(self.setValueExpression)
+        if not numberMode:
+            self.setValue.setCurrentWidget(self.setValueExpression)
+
+        self.setUnit = QStackedLayout()
+        self.setUnitMulti = QComboBox()
         i = 0
         for v in component.value.unitPrefixes:
-            self.setUnit.addItem(v + component.unit)
+            self.setUnitMulti.addItem(v + component.unit)
             if v == self.component.value.unitPrefix:
-                self.setUnit.setCurrentIndex(i)
+                self.setUnitMulti.setCurrentIndex(i)
             i += 1
+        self.setUnitSimple = QLabel(component.unit)
+        self.setUnit.addWidget(self.setUnitMulti)
+        self.setUnit.addWidget(self.setUnitSimple)
+
+        self.inputTypes = QHBoxLayout()
+        self.inputNumber = QRadioButton("Number")
+        self.inputExpression = QRadioButton("Expression")
+        self.inputTypes.addWidget(self.inputNumber)
+        self.inputTypes.addWidget(self.inputExpression)
+        if numberMode:
+            self.inputNumber.setChecked(True)
+        else:
+            self.inputExpression.setChecked(True)
+        self.inputNumber.toggled.connect(lambda: self.inputTypeToggle(self.inputNumber))
+        self.inputExpression.toggled.connect(lambda: self.inputTypeToggle(self.inputExpression))
 
         self.form = QFormLayout(self.dialog)
         self.form.addRow("Name", self.nameEditor)
         self.form.addRow(component.measure, self.setValue)
         self.form.addRow("Unit", self.setUnit)
+        self.form.addRow("", self.inputTypes)
         self.form.addRow("", self.buttons)
 
-        self.dialog.setGeometry(window.x() + window.width()/2 - self.w/2,
-                          window.y() + window.height()/2 - self.h/2,
-                          self.w, self.h)
+
+    def inputTypeToggle(self, button):
+        if button.text() == "Number" and button.isChecked():
+            self.setValue.setCurrentWidget(self.setValueNumber)
+            self.setUnit.setCurrentWidget(self.setUnitMulti)
+        elif button.text() == "Expression" and button.isChecked():
+            self.setValue.setCurrentWidget(self.setValueExpression)
+            self.setUnit.setCurrentWidget(self.setUnitSimple)
+        self.setValue.update()
+        self.form.update()
 
     def okay(self):
-        self.component.value.value = self.setValue.value()
-        self.component.value.unitPrefix = self.setUnit.currentText()[:-1]
+        if self.setValue.currentWidget() == self.setValueNumber:
+            self.component.value.value = self.setValueNumber.value()
+            self.component.value.unitPrefix = self.setUnitMulti.currentText()[:-1]
+        else:
+            self.component.value.value = self.setValueExpression.text()
+            self.component.value.unitPrefix = ""
         newName = self.setName.text()
         if not self.window.schematic.usedName(newName, self.component):
             self.component.name = newName

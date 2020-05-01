@@ -1,5 +1,5 @@
 from component import *
-import random, math, lcapy
+import random, math, lcapy, sympy
 
 class Solver():
 
@@ -16,8 +16,8 @@ class Solver():
         try:
             self.circuit = lcapy.Circuit()
             for c in self.components:
-                self.circuit.add(c.component.getSolverString())
                 print(c.component.getSolverString())
+                self.circuit.add(c.component.getSolverString())
             gnd = self.circuit[components[0].component.name].V
         except Exception as e:
             self.solved = False
@@ -25,10 +25,19 @@ class Solver():
         return None
 
     def getValue(self, name, value):
+        domain = lcapy.t
+        if self.schematic.domain == "s":
+            domain = lcapy.s
         if self.solved:
-            return str(getattr(self.circuit[name], value)(lcapy.t))
+            return getattr(self.circuit[name], value)(domain)
         else:
             return ""
+
+    def getValuesInDomain(self, name, value, t):
+        if self.solved:
+            return getattr(self.circuit[name], value)(lcapy.t).evaluate(t)
+        else:
+            return [0]
 
     def nextNode(self):
         self.node += 1

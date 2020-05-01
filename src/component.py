@@ -1,6 +1,6 @@
 from qt import *
 from measure import Measure
-import random, math
+import random, math, sympy
 
 class Connection():
 
@@ -12,6 +12,8 @@ class Connection():
 class Component():
 
     measure, unit = "", ""
+    signed = True
+    initial = False
 
     def __init__(self, parent, value = 1):
         self.value = Measure(value, self.unit)
@@ -28,9 +30,11 @@ class Component():
             I = self.getSolveValue("I", "A")
             V.autoPrefix()
             I.autoPrefix()
-            out = self.name + " (" + self.schematicComponent.type  + ")\n"
-            out += "Voltage: " + V.str() + "\n"
-            out += "Current: " + I.str()
+            out = [[self.name + " (" + self.schematicComponent.type  + ")", "selected"]]
+            out.append(["Voltage: ", "selected"])
+            out.append([V.str(), "standard"])
+            out.append(["Current: ", "selected"])
+            out.append([I.str(), "standard"])
             return out
         else:
             return ""
@@ -38,6 +42,16 @@ class Component():
     # Returns a measure of a value of component
     def getSolveValue(self, value, unit):
         return Measure(self.solver.getValue(self.name, value), unit)
+            # Returns a measure of a value of component
+
+    def getSolvePlots(self, time):
+        if self.solver.solved:
+            results = {"name": self.name}
+            for x in ["V", "I"]:
+                results[x] = self.solver.getValuesInDomain(self.name, x, time)
+            return results
+        else:
+            return {"name": self.name}
 
     # Returns value in a form readable by lcapy
     def getValueString(self):
@@ -50,6 +64,8 @@ class Component():
 
     # Returns a copy of nodes reordered to match the sign of the component
     def getSignedNodes(self):
+        if not self.signed:
+            return [*self.nodes]
         signs = {1: [*self.nodes], -1: [*self.nodes]}
         signs[1].reverse()
         #if self.schematicComponent.horizontal:
@@ -86,7 +102,7 @@ class CurrentSource(Component):
 
     measure = "Current"
     unit = "A"
-    namePrefix = "I"
+    namePrefix = "C"
 
 
 """ -------------------------------------
@@ -98,11 +114,32 @@ class Resistor(Component):
     measure = "Resistance"
     unit = "Ω"
     namePrefix = "R"
+    signed = False
 
-    # Resistor direction does not matter
-    def getSignedNodes(self):
-        return [*self.nodes]
 
+""" -------------------------------------
+    Capacitor
+    ------------------------------------- """
+
+class Capacitor(Component):
+
+    measure = "Capacitance"
+    unit = "F"
+    namePrefix = "C"
+    signed = False
+    initial = True
+
+""" -------------------------------------
+    Inductor
+    ------------------------------------- """
+
+class Inductor(Component):
+
+    measure = "Inductance"
+    unit = "H"
+    namePrefix = "L"
+    signed = False
+    initial = True
 
 """ -------------------------------------
     Component Lookup
@@ -111,5 +148,7 @@ class Resistor(Component):
 Component.lookup = {
     "resistor": Resistor,
     "voltageSource": VoltageSource,
-    "currentSource": CurrentSource
+    "currentSource": CurrentSource,
+    "capacitor": Capacitor,
+    "inductor": Inductor
 }

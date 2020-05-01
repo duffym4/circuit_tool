@@ -1,3 +1,5 @@
+from qt import *
+
 ''' Returns the sign of a number (-1, 0 or 1)
 '''
 def sign(v):
@@ -8,3 +10,8 @@ def sign(v):
 '''
 def mp2oz(v):
     return .5*(-v + 1)
+
+def stringWidth(str, font):
+    lbl = QLabel(str)
+    lbl.setFont(font)
+    return lbl.fontMetrics().boundingRect(lbl.text()).width()

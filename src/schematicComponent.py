@@ -37,7 +37,8 @@ class SchematicComponent():
 
     def draw(self, qp):
         s = self.schematic.grid_size
-        qp.setFont(QFont('SansSerif', 10*(s/20)))
+        self.font = QFont('SansSerif', 10*(s/20))
+        qp.setFont(self.font)
         if self.schematic.debug:
             self.drawBoundingBoxes(qp)
             self.drawEndPoints(qp)
@@ -77,25 +78,28 @@ class SchematicComponent():
     def getLabelBox(self):
         s, x0, y0, w0, h0 = self.getDrawValues()
         y, h = y0 + (1.25*s)*h0 - (1.5*s)*w0, s
-        box = QRectF(x0 + s*w0 - 2.5*s*h0, y, 2*s, h)
+        w = stringWidth(self.getLabelText(), self.font) + s/5
         if self.drawName:
             h = 2*s
             y -= s/2
-        return QRectF(x0 + s*w0 - 2.5*s*h0, y, 2*s, h)
+        return QRectF(x0 - (w/2) + 2*s*w0 - 1.5*s*h0, y, w, h)
 
     def drawLabelBox(self, qp):
         qp.fillRect(self.getLabelBox(), self.colors["labelBox"])
 
-    def drawLabel(self, qp):
-        s, x0, y0, w0, h0 = self.getDrawValues()
+    def getLabelText(self):
         lbl = self.component.value.str()
         if self.drawName:
             lbl = self.component.name + "\n" + lbl
+        return lbl
+
+    def drawLabel(self, qp):
+        s, x0, y0, w0, h0 = self.getDrawValues()
         align = Qt.AlignCenter
         if h0:
             align = Qt.AlignRight | Qt.AlignCenter
         qp.setPen(QPen(self.colors["label"], math.floor(s/10)))
-        qp.drawText(self.getLabelBox(), align, lbl)
+        qp.drawText(self.getLabelBox(), align, self.getLabelText())
 
     def drawRoundSchematicComponent(self, qp):
         s = self.schematic.grid_size
@@ -126,6 +130,14 @@ class SchematicComponent():
                        y0 + y*w0 + x*h0,
                        w*w0 + h*h0,
                        h*w0 + w*h0)
+
+    def drawArc(self, qp, x, y, w, h, start, length):
+       s, x0, y0, w0, h0 = self.getDrawValues()
+       qp.drawArc(x0 + x*w0 + y*h0,
+                  y0 + y*w0 + x*h0,
+                  w*w0 + h*h0,
+                  h*w0 + w*h0,
+                  (start + 90*h0) * 16, length * 16)
 
     """ -------------------------------------
         Coordinate Calculations
@@ -179,6 +191,10 @@ class SchematicComponent():
     def getSolveData(self):
         if hasattr(self, "component"):
             return self.component.getSolveData()
+
+    def getSolvePlots(self, time):
+        if hasattr(self, "component"):
+            return self.component.getSolvePlots(time)
 
     def adjacentComponents(self, components):
         nodes = self.getConnections()
@@ -265,7 +281,12 @@ class SchematicWire(SchematicComponent):
         solver = self.schematic.solver
         measure = Measure(solver.getValue(solver.wires[self], "V"), "V")
         measure.autoPrefix()
-        return "Wire\n" + measure.str()
+        return [["Wire", "selected"], [measure.str(), "standard"]]
+
+    def getSolvePlots(self, time):
+        solver = self.schematic.solver
+        v = solver.getValuesInDomain(solver.wires[self], "V", time)
+        return {"name": "Wire", "V": v}
 
     def positive(self):
         if self.sign == -1:
@@ -363,6 +384,47 @@ class SchematicResistor(SchematicComponent):
         self.drawLine(qp, 2.6*s, 2*s/3, 3*s, 0)
 
 """ -------------------------------------
+    Capacitor
+    ------------------------------------- """
+
+class SchematicCapacitor(SchematicComponent):
+
+    type = "Capacitor"
+
+    def __init__(self, parent, x, y, sign, horizontal = True):
+        super().__init__(parent, x, y, sign, horizontal)
+        self.component = Capacitor(self)
+
+    def drawComponent(self, qp):
+        s = self.schematic.grid_size
+        self.drawLeads(qp)
+        self.drawLine(qp, s, 0, 1.8*s, 0)
+        self.drawLine(qp, 1.8*s, -.75*s, 1.8*s, .75*s)
+        self.drawLine(qp, 2.2*s, 0, 3*s, 0)
+        self.drawLine(qp, 2.2*s, -.75*s, 2.2*s, .75*s)
+
+""" -------------------------------------
+    Inductor
+    ------------------------------------- """
+
+class SchematicInductor(SchematicComponent):
+
+    type = "Inductor"
+
+    def __init__(self, parent, x, y, sign, horizontal = True):
+        super().__init__(parent, x, y, sign, horizontal)
+        self.component = Inductor(self)
+
+    def drawComponent(self, qp):
+        s = self.schematic.grid_size
+        self.drawLeads(qp)
+        self.drawArc(qp, s, -.25*s, .5*s, .5*s, 0, 180)
+        self.drawArc(qp, 1.5*s, -.25*s, .5*s, .5*s, 0, 180)
+        self.drawArc(qp, 2*s, -.25*s, .5*s, .5*s, 0, 180)
+        self.drawArc(qp, 2.5*s, -.25*s, .5*s, .5*s, 0, 180)
+
+
+""" -------------------------------------
     Ground
     ------------------------------------- """
 
@@ -384,7 +446,7 @@ class SchematicGround(SchematicComponent):
         pass
 
     def getSolveData(self):
-        return "GND"
+        return [["GND", "selected"]]
 
     def getConnections(self):
         s, x0, y0, w0, h0 = self.getDrawValues()
@@ -418,5 +480,7 @@ SchematicComponent.lookup = {
     "resistor": SchematicResistor,
     "voltageSource": SchematicVoltageSource,
     "currentSource": SchematicCurrentSource,
-    "ground": SchematicGround
+    "ground": SchematicGround,
+    "capacitor": SchematicCapacitor,
+    "inductor": SchematicInductor
 }

@@ -3,7 +3,8 @@ from schematicComponent import *
 from dialog import *
 from util import *
 from solver import Solver
-import random, math, pickle
+import random, math, pickle, sympy
+import numpy as np
 
 class SchematicEditor(QWidget):
 
@@ -33,7 +34,9 @@ class SchematicEditor(QWidget):
             "r": ["resistor"],
             "v": ["voltageSource"],
             "i": ["currentSource"],
+            "c": ["capacitor"],
             "w": ["wire", "inserting"],
+            "l": ["inductor"],
             "g": ["ground"]
         }
         self.actionShortcuts = {
@@ -63,7 +66,10 @@ class SchematicEditor(QWidget):
             "boundingBox":      QColor(100, 155, 155)
         }
         self.zoom_min, self.zoom_max = 14, 100
+        self.font = QFont('SansSerif', 20)
         self.solver = Solver(self)
+        self.simulationTime = 20
+        self.domain = "t"
 
     def initUI(self):
         self.setMouseTracking(True)
@@ -107,6 +113,8 @@ class SchematicEditor(QWidget):
             self.componentMousePress(e)
         elif self.mode["mode"] == "navigation":
             self.grabComponent(e)
+        elif self.mode["mode"] == "inspect":
+            self.inspectComponent(e)
         self.dragStart(e, True)
         self.update()
 
@@ -190,18 +198,28 @@ class SchematicEditor(QWidget):
 
     def drawSolvedData(self, qp):
         if self.mode["mode"] == "inspect" and self.selected:
-            lr = self.mouse_x < self.window.width()/2
-            tb = self.mouse_y < self.window.height()/2
-            w, h = 500, 200
-            box = [10 + lr*(self.window.width() - w - 20),
-                       10 + tb*(self.window.height() - h - 50),
-                       w, h]
-            qp.fillRect(QRectF(*box), self.colors["inspectBox"])
-            qp.setPen(QPen(self.colors["label"], 2, Qt.SolidLine))
-            qp.drawRect(*box)
+            lr = self.mouse_x < self.width()/2
+            tb = self.mouse_y < self.height()/2
+            spacing = 50
+            h = 0
+            for math in self.selected.getSolveData():
+                h += spacing * len(math[0].split("\n"))
+            w = max(300, stringWidth(self.selected.getSolveData()[-1][0], self.font))
+            box = [10 + lr*(self.width() - w - 20),
+                       10 + tb*(self.height() - h),
+                       w, spacing]
+            qp.setFont(self.font)
             align = Qt.AlignCenter
-            qp.setFont(QFont('SansSerif', 20))
-            qp.drawText(QRectF(*box), align, self.selected.getSolveData())
+            height = 0
+            for math in self.selected.getSolveData():
+                box[3] = spacing * len(math[0].split("\n"))
+                qp.setPen(QPen(self.colors[math[1]], 2, Qt.SolidLine))
+                qp.drawText(QRectF(*box), align, math[0])
+                box[1] += box[3]
+            box = [10 + lr*(self.width() - w - 20),
+                       10 + tb*(self.height() - h),
+                       w, box[1] - 10 + tb*(self.height() - h)]
+            qp.fillRect(QRectF(*box), self.colors["inspectBox"])
 
     """ -------------------------------------
         Controls
@@ -216,7 +234,10 @@ class SchematicEditor(QWidget):
             self.mode[mode[i-1]] = mode[i]
         if self.mode["mode"] == "inspect":
             QApplication.setOverrideCursor(Qt.WhatsThisCursor)
+            self.window.plot.clear()
+            self.window.plot.clear()
         elif self.mode["mode"] == "component":
+            self.window.plot.hide()
             self.resetCurrent(self.mode["component"])
             if self.mode["component"] == "wire":
                 QApplication.setOverrideCursor(Qt.CrossCursor)
@@ -370,6 +391,14 @@ class SchematicEditor(QWidget):
         elif e.button() == Qt.RightButton:
             if not self.current and self.selected != None:
                 self.selected.edit()
+
+    def inspectComponent(self, e):
+        if e.button() == Qt.LeftButton:
+            if self.selected:
+                x = np.linspace(0, self.simulationTime, 100)
+                data = self.selected.getSolvePlots(x)
+                self.window.plot.show()
+                self.window.plot.addPlot(x, data)
 
     def resetCurrent(self, component, horizontal = True, sign = 1):
         if component != "temporary":

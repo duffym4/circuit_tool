@@ -1,4 +1,5 @@
 from util import sign
+import sympy
 
 class Measure():
 
@@ -15,13 +16,20 @@ class Measure():
         self.unit = unit
         self.unitPrefix = prefix
 
+    def isNumber(self):
+        try:
+            test = ('%.4f' % self.float()).rstrip('0').rstrip('.')
+            return True
+        except:
+            return False
+
     # Converts fraction str to float. Ignores unitPrefix
     def float(self):
         try:
-            return float(self.value)
+            return float(str(self.value))
         except ValueError:
             try:
-                num, denom = self.value.split('/')
+                num, denom = str(self.value).split('/')
             except ValueError:
                 return None
             try:
@@ -40,10 +48,14 @@ class Measure():
 
     # Strips zeroes from float for better printing
     def prettyFloat(self):
-        return ('%.4f' % self.float()).rstrip('0').rstrip('.')
+        if self.isNumber():
+            return ('%.4f' % self.float()).rstrip('0').rstrip('.')
+        return sympy.pretty(self.value) + " "
 
     # Formats value for lcapy in format [value]e[unitPrefix]
     def lcapyStr(self):
+         if not self.isNumber():
+             return "{" + "".join(self.value.split()) + "}"
          return self.prettyFloat() + "e" + str(self.unitPrefixes[self.unitPrefix])
 
     # Returns a string with a pretty float and the unit
@@ -52,6 +64,8 @@ class Measure():
 
     # Chooses a prefix that optimizes readability
     def autoPrefix(self):
+        if not self.isNumber():
+            return ""
         num = abs(self.number())
         if num == 0:
             self.value, self.unitPrefix = 0, ""

@@ -1,6 +1,6 @@
 from qt import *
 from schematicComponent import SchematicComponent
-from dialog import InfoDialogs
+from dialog import InfoDialogs, CircuitProperties
 from schematicEditor import SchematicEditor
 
 class AltMenu:
@@ -16,7 +16,8 @@ class AltMenu:
                 "Quit": self.window.quit
             },
             "Circuit": {
-                "Inspect": self.window.schematic.solve
+                "Inspect": self.window.schematic.solve,
+                "Configure": lambda: CircuitProperties(self.window)
             },
             "Component": {}, # Populated Programmatically
             "Help": {

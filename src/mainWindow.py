@@ -2,6 +2,7 @@ from qt import *
 from schematicEditor import SchematicEditor
 from altMenu import AltMenu
 from dialog import *
+from plotViewer import PlotCanvas
 
 class MainWindow(QMainWindow):
     def __init__(self, parent):
@@ -10,7 +11,16 @@ class MainWindow(QMainWindow):
         self.schematic = SchematicEditor(self)
         self.menu = AltMenu(self)
         self.schematic.setFocusPolicy(Qt.StrongFocus)
-        self.setCentralWidget(self.schematic)
+        self.plot = PlotCanvas(self)
+
+        self.mainLayout = QHBoxLayout()
+        self.mainLayout.addWidget(self.schematic, 60)
+        self.mainLayout.addWidget(self.plot, 40)
+        self.plot.hide()
+        self.mainWidget = QWidget()
+        self.mainWidget.setLayout(self.mainLayout)
+
+        self.setCentralWidget(self.mainWidget)
         self.setGeometry(100, 100, 1000, 700)
 
     def closeEvent(self, e):
