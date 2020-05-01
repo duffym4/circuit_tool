@@ -29,13 +29,13 @@ The front end will use the cross platform, open source graphical toolkit Qt. Bel
    - [x] Basic schematic editing
    - [x] Solving time constant circuits
 * **March:**
-   - [ ] Improved user interface
-   - [ ] Solving time dependent circuits
-      - [ ] Support capacitors and inductors
+   - [x] Improved user interface
+   - [x] Solving time dependent circuits
+      - [x] Support capacitors and inductors
    - [x] Saving and loading circuits
-   - [ ] Graphing
+   - [x] Graphing
 * **April:**
-   - [ ] Solving for the s domain
+   - [x] Solving for the s domain
    - [ ] Support More Components
       - [ ] Op Amps
       - [ ] Dependent Sources
